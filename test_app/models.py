@@ -1,11 +1,21 @@
 from django.db import models
+from django.utils import timezone
+
 
 # def get_disc_price_according_orig_price():
 #     ...
 
 class Book(models.Model):
-    title = models.CharField(max_length=100)  # VarChar(255)
-    description = models.TextField()
+    title = models.CharField(
+        max_length=100,  # Обязятальный параметр для CharField, общий для строговых параметров, нужны миграции
+        unique=True,  # общий для всех типов данных, нужны миграции
+        verbose_name="Book name",  # общий для всех типов данных, НЕ нужны миграции
+        help_text="You must provide specific name of book"  # общий для всех типов данных, НЕ нужны миграции
+    )  # VarChar(255)
+    description = models.TextField(
+        null=True, # хранение null в БД общий для всех типов данных, нужны миграции
+        blank=True # позволяет полю в Админ панели быть необязательным общий для всех типов данных, НЕ нужны миграции
+    )
     price = models.FloatField()
     # discounted_price = models.FloatField()  # NOT NULL
     # discounted_price = models.FloatField(default=0.0)  # DEFAULT 0.0
@@ -41,11 +51,24 @@ class Book(models.Model):
 # """
 
 
+gender_choices = [
+    # ('то, что пойдёт в базу данных', 'то, что будет видеть клиент')
+    ('m', 'Male'),
+    ('f', 'Female'),
+    ('na', 'N/A'),
+]
+
+
 class Author(models.Model):
     first_name = models.CharField(max_length=25)
     last_name = models.CharField(max_length=35)
     pseudonym = models.CharField(max_length=20)
     bio = models.TextField(null=True)
+    gender = models.CharField(
+        max_length=4,
+        choices=gender_choices,  # для строковых типов данных, необязательный нужны миграции
+        default='na'  # общий для всех типов данных, нужны миграции
+    )
     email = models.EmailField(max_length=75, null=True)
     # URLValidator() "под капотом" будет проверять, что строка начинается с http:// или https://
     website = models.URLField(null=True)
@@ -57,8 +80,8 @@ class Author(models.Model):
     comments_count = models.PositiveIntegerField(null=True)
     reputation_score = models.DecimalField(
         null=True,
-        max_digits=3,  # как много символов должно быть в общем
-        decimal_places=2  # из всего этого кол-ва как много должно быть после точки
+        max_digits=3,  # как много символов должно быть в общем. для Decimal типов, нужны миграции
+        decimal_places=2  # из всего этого кол-ва как много должно быть после точки. для Decimal типов, нужны миграции
     )  #  1.00 | 3.75 | 5.00 | 4.99 | 2.01
     monetisation_income = models.FloatField(null=True)
 
@@ -80,7 +103,10 @@ class Author(models.Model):
 
 
 class Post(models.Model):
-    title = models.CharField(max_length=200)
+    title = models.CharField(
+        max_length=200,
+        unique_for_month='posted_at'  # Уникальный для Date колонок. передаём в виде строчки название Date колонки
+    )  # важно, чтобы указаная колонка была НЕ auto_now(_add) и НЕ editable=False, иначе не сработает
     content = models.TextField()
 
     #  auto_now_add И auto_now параметры "под капотом" автоматичеки ставят ещё и параметр editable = False
@@ -89,6 +115,7 @@ class Post(models.Model):
     reading_time = models.DurationField(
         null=True
     )
+    posted_at = models.DateTimeField(default=timezone.now)
 
 
 

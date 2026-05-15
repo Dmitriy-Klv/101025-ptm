@@ -67,6 +67,13 @@ MIDDLEWARE = [
 
 ROOT_URLCONF = 'config.urls'
 
+# AUTH_USER_MODEL = '<app label>.<model name>'
+# AUTH_USER_MODEL = 'django.contrib.auth.User'
+# тут мы указываем DJango какую именно модель из какого приложения мы берём для работы с пользователями
+# по дефолту Django как раз работает со своим пользователем, нам это не подходит
+AUTH_USER_MODEL = 'test_app.User'
+
+
 TEMPLATES = [
     {
         'BACKEND': 'django.template.backends.django.DjangoTemplates',
@@ -148,8 +155,8 @@ AUTH_PASSWORD_VALIDATORS = [
 # Internationalization
 # https://docs.djangoproject.com/en/6.0/topics/i18n/
 
-LANGUAGE_CODE = 'en-us'
-# LANGUAGE_CODE = 'uk'
+# LANGUAGE_CODE = 'en-us'
+LANGUAGE_CODE = 'uk'
 
 TIME_ZONE = 'UTC'
 

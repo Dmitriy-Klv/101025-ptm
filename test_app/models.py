@@ -1,9 +1,180 @@
+import re
+
+from django.core.exceptions import ValidationError
+from django.core.validators import MinValueValidator, MaxValueValidator
 from django.db import models
+from django.contrib.auth.models import PermissionsMixin, UserManager
+from django.contrib.auth.base_user import AbstractBaseUser
+from django.utils.translation import gettext_lazy as _
 from django.utils import timezone
 
 
-# def get_disc_price_according_orig_price():
-#     ...
+def validate_phone_number(value: str) -> None:
+    if not re.fullmatch(
+            pattern=r"^\+?\d{1,4}?[\s-]?(?:\(?\d{2,5}\)?[\s-]?)?\d{2,5}[\s-]?\d{2,5}[\s-]?\d{0,5}$",
+            string=value
+    ):
+        raise ValidationError(
+            _("Invalid phone number. Please, try again.")
+        )
+
+
+gender_choices = [
+    # ('то, что пойдёт в базу данных', 'то, что будет видеть клиент')
+    ('m', 'Male'),
+    ('f', 'Female'),
+    ('na', 'N/A'),
+]
+
+
+roles = [
+    ('admin', 'ADMIN'),
+    ('moderator', 'MODERATOR'),
+    ('lib-member', 'LIB_MEMBER'),
+]
+
+
+
+languages = [
+    ('en', 'English'),
+    ('ua', 'Ukrainian'),
+    ('de', 'German'),
+]
+
+genres = [
+    ('fiction', 'Fiction'),
+    ('triller', 'Triller'),
+]
+
+
+class User(AbstractBaseUser, PermissionsMixin):
+    username = models.CharField(
+        # первый позиционный аргумент у колонок — именно verbose_name
+        # это lazy-объект перевода. Django НЕ ПЕРЕВОДИТ строку СРАЗУ.
+        # Он хранит объект типа Promise (обещание, да)
+        # и переводит его только в момент рендера:
+            # Django Admin
+            # forms
+            # templates
+            # serializer errors
+            # model meta display
+
+
+        # !!! ВАЖНО !!!
+        # перевод будет работать по умолчанию только по тем задекларированым
+        # колонкам, которые есть во внутренних переводчиках Django
+        # Если нужно больше и лучше -- нужно создавать специальные файлы в приложениях
+        _('Username'),
+        max_length=50,
+        unique=True,
+    )
+    email = models.EmailField(
+        _('Email'),
+        max_length=80,
+        unique=True,
+        null=True,
+        blank=True
+    )
+    bio = models.TextField(
+        _('Bio'),
+        null=True,
+        blank=True
+    )
+    first_name = models.CharField(
+        _('First Name'),
+        max_length=50,
+        null=True,
+        blank=True
+    )
+    last_name = models.CharField(
+        _('Last Name'),
+        max_length=50,
+        null=True,
+        blank=True
+    )
+    role = models.CharField(
+        _('Role'),
+        max_length=25,
+        choices=roles,
+        default='lib-member'
+    )
+    gender = models.CharField(
+        _('Gender'),
+        max_length=25,
+        choices=gender_choices,
+        default='na'
+    )
+    phone = models.CharField(
+        _('Phone'),
+        max_length=75,
+        unique=True,
+        null=True,
+        blank=True,
+
+        # кастомные валидаторы идут как список с Callable объектами
+        # Это может быть как класс, так и обычная функция
+        # объект мы не вызываем, просто передаём и всё. Напрямую в objects.create()
+        # валидатор работать не будет. Только в формах \ шаблонах \ сериализаторах
+        validators=[
+            validate_phone_number,
+        ]
+    )
+    birth_date = models.DateField(
+        _("Birth Date"),
+        null=True,
+        blank=True
+    )
+    age = models.PositiveSmallIntegerField(
+        _("Age"),
+        null=True,
+        blank=True,
+        validators=[
+            MinValueValidator(14),
+            MaxValueValidator(120)
+        ]
+    )
+
+    is_staff = models.BooleanField(
+        _("Is Staff"),
+        default=False
+    )
+    is_active = models.BooleanField(
+        _("Is Active"),
+        default=True,
+    )
+    verified = models.BooleanField(
+        _('Verified'),
+        default=False
+    )
+
+    created_at = models.DateTimeField(
+        _("Created At"),
+        auto_now_add=True
+    )
+    updated_at = models.DateTimeField(
+        _("Updated At"),
+        auto_now=True
+    )
+
+    # специальный менеджер
+    # через него делаем ORM запросы
+    objects = UserManager()
+
+    # указываем какое поле отвечает за механику username
+    USERNAME_FIELD = 'username'
+
+    # укаызваем какие поля помимо username и password будут требоваться при createsuperuser
+    REQUIRED_FIELDS = ['email', 'gender', 'role']
+
+    def __str__(self):
+        return f"{self.username} ({self.role})"
+
+    class Meta:
+        verbose_name = _("User")
+        verbose_name_plural = _("Users")
+        db_table = "users"
+
+
 
 class Book(models.Model):
     title = models.CharField(
@@ -15,6 +186,22 @@ class Book(models.Model):
     description = models.TextField(
         null=True, # хранение null в БД общий для всех типов данных, нужны миграции
         blank=True # позволяет полю в Админ панели быть необязательным общий для всех типов данных, НЕ нужны миграции
+    )
+    language = models.CharField(
+        max_length=30,
+        choices=languages,
+        null=True,
+        blank=True
+    )
+    publisher = models.ForeignKey(
+        User,
+        on_delete=models.CASCADE
+    )
+    genre = models.CharField(
+        max_length=30,
+        choices=genres,
+        null=True,
+        blank=True
     )
     price = models.FloatField()
     # discounted_price = models.FloatField()  # NOT NULL
@@ -37,6 +224,36 @@ class Book(models.Model):
         related_name='books'
     )
 
+    def __str__(self):
+        return f"{self.title} {self.id}"
+
+    class Meta:
+        db_table = 'books'
+
+        verbose_name = 'BOOK'
+        verbose_name_plural = 'BOOKS'
+        ordering = ['-published_date', 'title']
+
+        get_latest_by = 'published_date'
+
+        # unique_together = ('title', 'author')
+
+        indexes = [
+            models.Index(
+                fields=['genre', 'language'],
+                name='books_genre_language_idx'
+            )
+        ]
+
+        constraints = [
+            models.UniqueConstraint(
+                fields=['title', 'author'],
+                name='books_title_author_uqcst'
+            )
+
+        ]
+
+
 # Миграции и управление моделями отвечают ИСКЛЮЧИТЕЛЬНО ЗА DDL категорию запросов
 
 # DDL query -> Data Definition Language
@@ -51,12 +268,7 @@ class Book(models.Model):
 # """
 
 
-gender_choices = [
-    # ('то, что пойдёт в базу данных', 'то, что будет видеть клиент')
-    ('m', 'Male'),
-    ('f', 'Female'),
-    ('na', 'N/A'),
-]
+
 
 
 class Author(models.Model):
@@ -84,6 +296,14 @@ class Author(models.Model):
         decimal_places=2  # из всего этого кол-ва как много должно быть после точки. для Decimal типов, нужны миграции
     )  #  1.00 | 3.75 | 5.00 | 4.99 | 2.01
     monetisation_income = models.FloatField(null=True)
+
+    def __str__(self):
+        # A. Sapkovsky
+        return f"{self.first_name[0]}. {self.last_name}"
+
+    class Meta:
+        db_table = 'authors'
+
 
 # monday = 14.99
 # friday = 14.999999999999999999999999
@@ -117,7 +337,11 @@ class Post(models.Model):
     )
     posted_at = models.DateTimeField(default=timezone.now)
 
+    def __str__(self):
+        return self.title
 
+    class Meta:
+        db_table = 'posts'
 
 
 # РАБОТА СО СВЯЗЯМИ

@@ -1,7 +1,11 @@
 from typing import Any
 
-from rest_framework.generics import get_object_or_404
+from django.utils import timezone
+from django_filters.rest_framework import DjangoFilterBackend
+from rest_framework.filters import SearchFilter, OrderingFilter
+from rest_framework.generics import get_object_or_404, ListCreateAPIView, ListAPIView
 from rest_framework.views import APIView
+from rest_framework.generics import GenericAPIView, RetrieveUpdateDestroyAPIView
 from rest_framework.response import Response
 from rest_framework.request import Request
 from rest_framework import status
@@ -10,9 +14,14 @@ from library.serializers import (
     BookListSerializer,
     BookCreateUpdateSerializer,
     BookDetailSerializer,
-    BookQueryParamsSerializer
+    BookQueryParamsSerializer,
+    CategorySerializer,
+    # AuthorSerializer,
+    AuthorListSerializer,
+    AuthorCreateSerializer,
+    UserListSerializer
 )
-from library.models import Book
+from library.models import Book, Category, Author, User
 
 
 class BookListCreateAPIView(APIView):
@@ -134,3 +143,146 @@ class BookRetrieveUpdateDestroyAPIView(APIView):
             data={},
             status=status.HTTP_204_NO_CONTENT
         )
+
+
+
+
+class CategoryListCreateGenericAPIView(GenericAPIView):
+
+    queryset = Category.objects.all()
+    serializer_class = CategorySerializer
+
+    def get(self, request: Request, *args, **kwargs) -> Response:
+        categories = self.get_queryset()
+
+        serializer = self.get_serializer(categories, many=True)
+
+        return Response(
+            data=serializer.data,
+            status=status.HTTP_200_OK
+        )
+
+    def post(self, request: Request, *args, **kwargs) -> Response:
+        serializer = self.get_serializer(data=request.data)
+        # if not serializer.is_valid():
+        #     return Response(
+        #         data=serializer.errors,
+        #         status=status.HTTP_400_BAD_REQUEST
+        #     )
+
+        serializer.is_valid(raise_exception=True)
+        serializer.save()
+
+        return Response(
+            data=serializer.data,
+            status=status.HTTP_201_CREATED
+        )
+
+
+
+class CategoryRetrieveUpdateDestroyGenericView(RetrieveUpdateDestroyAPIView):
+
+    queryset = Category.objects.all()
+    serializer_class = CategorySerializer
+
+    # по какой колонке в БД будет идти поиск одного объекта
+    lookup_field = 'name'
+
+    # как должна называться динамичная переменная в урликах в запросе
+    lookup_url_kwarg = 'name'
+
+
+class AuthorListCreateGenericView(ListCreateAPIView):
+
+    # queryset = Author.objects.all()  # какой набор данных возьмётся на ВСЮ вьюшку целиком
+    # serializer_class = AuthorSerializer  # какой сериализатор будет взят на ВСЮ вьюшку целиком
+
+    def get_serializer_class(self):
+        if self.request.method == 'GET':
+            return AuthorListSerializer
+        return AuthorCreateSerializer
+
+    def get_queryset(self):
+        """
+        Используем, когда нужно, чтобы запрос на взятие данных мог динамически изменяться
+        :return: итоговый набор данных
+        """
+
+        qs = Author.objects.all()
+
+        # http://127.0.0.1:8000/api/v1/authors/?rating_gt=4
+        rating_gt = self.request.query_params.get('rating_gt')
+        rating_lt = self.request.query_params.get('rating_lt')
+
+        if rating_gt:
+            try:
+                rating_gt = int(rating_gt)
+                qs = qs.filter(rating__gt=rating_gt)
+            except ValueError:
+                # QuerySet([Obj(1), ..., Obj(100)]) -> -> qs.none() -> -> QuerySet([])
+                qs = qs.none()  # если нам передали плохой рейтинг ("hello") -- "наказываем" за оплошность и ОЧИЩШАЕМ ВЕСЬ НАБОР ДАННЫХ
+
+        if rating_lt:
+            try:
+                rating_lt = int(rating_lt)
+                qs = qs.filter(rating__lt=rating_lt)
+            except ValueError:
+                # QuerySet([Obj(1), ..., Obj(100)]) -> -> qs.none() -> -> QuerySet([])
+                qs = qs.none()  # если нам передали плохой рейтинг ("hello") -- "наказываем" за оплошность и ОЧИЩШАЕМ ВЕСЬ НАБОР ДАННЫХ
+
+        return qs
+
+    def create(self, request: Request, *args, **kwargs):
+
+        if 'date_for_birth' not in request.data or not request.data.get('date_for_birth'):
+            request.data['date_for_birth'] = timezone.now()
+
+        return super().create(request, *args, **kwargs)
+
+
+
+
+
+
+class UserListGenericView(ListAPIView):
+
+    queryset = User.objects.all()
+    serializer_class = UserListSerializer
+
+
+    def get_serializer_context(self):
+
+        context = super().get_serializer_context()
+        include_related = self.request.query_params.get('related', 'false')
+        context['include_related'] = include_related.lower() == 'true'
+
+        return context
+
+
+class BookListGenericView(ListAPIView):
+
+    queryset = Book.objects.all()
+    serializer_class = BookListSerializer
+
+    filter_backends = [
+        DjangoFilterBackend, # фильтрация данных
+        SearchFilter, # поиск объектов
+        OrderingFilter # сортировку объектов
+    ]
+
+    filterset_fields = [
+        'author',
+        'price',
+        'publisher',
+        'category',
+        'published_date',
+    ]
+    search_fields = [
+        'name',
+        'description',
+    ]
+    ordering_fields = [
+        'id',
+        'price',
+        'published_date',
+    ]

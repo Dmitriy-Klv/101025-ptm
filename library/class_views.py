@@ -4,9 +4,12 @@ from django.core.exceptions import ValidationError
 from django.db.models import Count
 from django.utils import timezone
 from django_filters.rest_framework import DjangoFilterBackend
+from rest_framework.authentication import TokenAuthentication
 from rest_framework.decorators import action
 from rest_framework.filters import SearchFilter, OrderingFilter
 from rest_framework.pagination import PageNumberPagination, CursorPagination
+from rest_framework.permissions import AllowAny, IsAuthenticated, IsAdminUser, IsAuthenticatedOrReadOnly
+
 
 from rest_framework.views import APIView
 from rest_framework.generics import (
@@ -434,6 +437,8 @@ def notify_me():
 class AuthorViewSet(ModelViewSet):
     queryset = Author.objects.all()
     serializer_class = AuthorCreateSerializer
+    permission_classes = [IsAdminUser]
+    # authentication_classes = [TokenAuthentication]
 
     # HTTP methods заменяются на self.actions
 

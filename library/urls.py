@@ -1,5 +1,7 @@
 from django.urls import path
 from rest_framework.routers import SimpleRouter, DefaultRouter
+from rest_framework.authtoken.views import obtain_auth_token
+from rest_framework_simplejwt.views import TokenObtainPairView, TokenRefreshView
 
 
 from library.views import book_list_create
@@ -27,6 +29,14 @@ router.register('authors', AuthorViewSet)
 
 # api/v1/books/
 urlpatterns = [
+    # auth
+    path('api-token-auth/', obtain_auth_token),
+
+    # jwt token auth
+    path('jwt-auth/', TokenObtainPairView.as_view()),
+    path('jwt-refresh/', TokenRefreshView.as_view()),
+
+
     # path('books/', book_list_create),
     # path('books/', BookListCreateAPIView.as_view()),
     path('books/', BookListGenericView.as_view()),

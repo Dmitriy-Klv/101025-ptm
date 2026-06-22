@@ -50,6 +50,7 @@ INSTALLED_APPS = [
 
     # 3rd-party
     'rest_framework',
+    'rest_framework.authtoken',
     'django_filters',
     
     # local
@@ -159,6 +160,32 @@ REST_FRAMEWORK = {
     # 'DEFAULT_PAGINATION_CLASS': 'rest_framework.pagination.PageNumberPagination',
     'DEFAULT_PAGINATION_CLASS': 'paginators.CustomCursorPaginator',
     # 'PAGE_SIZE': 5
+    'DEFAULT_AUTHENTICATION_CLASSES': [
+        # 'rest_framework.authentication.BasicAuthentication',
+        # 'rest_framework.authentication.SessionAuthentication',
+        # 'rest_framework.authentication.TokenAuthentication',
+        'rest_framework_simplejwt.authentication.JWTAuthentication',
+    ],
+    'DEFAULT_PERMISSION_CLASSES': [
+        'rest_framework.permissions.IsAuthenticated'
+    ],
+}
+
+from datetime import timedelta
+
+SIMPLE_JWT = {
+    "ACCESS_TOKEN_LIFETIME": timedelta(hours=3), # время жизни токена доступа (с ним делаем запросы)
+    "REFRESH_TOKEN_LIFETIME": timedelta(days=7), # время жизни токена обновления (с ним делаем запросы)
+
+    # Ротация(обновление и перевыпуск) токенов при обновлении \ истечении срока жизни
+    "ROTATE_REFRESH_TOKENS": False,
+    "BLACKLIST_AFTER_ROTATION": True, # если включаем ротацию и чёрный список -- допом регистрируем +1 приложение и делаем миграции для создания таблиц чёрного списка
+    "BLACKLIST_ENABLED": False, # если поставить True == нужна миграция
+
+    "ALGORITHM": "HS256",
+    "SIGNING_KEY": SECRET_KEY,
+    "AUTH_HEADER_TYPES": ("Bearer",),
+    "AUTH_TOKEN_CLASSES": ("rest_framework_simplejwt.tokens.AccessToken",),
 }
 
 

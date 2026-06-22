@@ -21,6 +21,7 @@ from test_app.views import greetings
 
 urlpatterns = [
     path('admin/', admin.site.urls), # происходит редирект на N маршрутов от DJango
+    path('api-auth/', include('rest_framework.urls')),
     path('home-page/', greetings),   # происходит выполнение логики функции
 
     # тут мы регистрируем наши представления (функции-вьюшки)

@@ -1,15 +1,14 @@
-import os
-import django
-from django.templatetags.i18n import language
-
-os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'config.settings')
-django.setup()
+# import os
+# import django
+#
+# os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'config.settings')
+# django.setup()
 
 
 # СТРОГО ПОСЛЕ django.setup()
-from test_app.models import Book, Author, User, Post
+# from test_app.models import Book, Author, User, Post
 
-publisher = User.objects.get(id=1)
+# publisher = User.objects.get(id=1)
 
 # Book.objects.create(
 #     title="Старик и Море",
@@ -308,7 +307,40 @@ from django.db.models import F
 
 
 
-post = Post.objects.get(id=4)
+# post = Post.objects.get(id=4)
+#
+#
+# post.delete()
 
 
-post.delete()
+
+# =================================================
+# WORK WITH AUTHTOKEN
+
+
+import os
+import django
+
+os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'config.settings')
+django.setup()
+
+from rest_framework.authtoken.models import Token
+from library.models import User
+
+
+try:
+    user = User.objects.get(username="vlad")
+
+    # try:
+    #     token = Token.objects.get(user=user)
+    #
+    # except Token.DoesNotExist:
+    #     token = Token.objects.create(user=user)
+
+    token, created = Token.objects.get_or_create(user=user)
+
+    print(token.key)
+
+except User.DoesNotExist:
+    print("User not found")
+

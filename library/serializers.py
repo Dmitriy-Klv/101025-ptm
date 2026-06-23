@@ -88,7 +88,7 @@ class BookDetailSerializer(serializers.ModelSerializer):
     class Meta:
         model = Book
         exclude = [
-            'owner',
+            # 'owner',
             'published_date',
         ]
 
@@ -108,6 +108,7 @@ class BookListSerializer(serializers.ModelSerializer):
             'id',
             'name',
             'author',
+            'owner',
             'price',
             'category',
         ]
@@ -176,6 +177,12 @@ class CategorySerializer(serializers.ModelSerializer):
         model = Category
         fields = '__all__'
         read_only_fields = ['deleted_at']
+
+
+class CategoryStatisticSerializer(serializers.Serializer):
+    name = serializers.CharField(max_length=20)
+    books_count = serializers.IntegerField()
+
 
 
 # class AuthorSerializer(serializers.ModelSerializer):

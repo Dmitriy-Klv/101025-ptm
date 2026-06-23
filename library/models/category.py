@@ -12,3 +12,8 @@ class Category(SoftDeletionModel):
         max_length=30,
         unique=True,
     )
+
+    class Meta:
+        permissions = (
+            ('can_get_statistic', 'Can get category statistic'),
+        )

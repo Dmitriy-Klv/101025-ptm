@@ -1,7 +1,8 @@
 from typing import Any
 
 from django.core.exceptions import ValidationError
-from django.db.models import Count
+from django.db.migrations import serializer
+from django.db.models import Count, Model
 from django.utils import timezone
 from django_filters.rest_framework import DjangoFilterBackend
 from rest_framework.authentication import TokenAuthentication
@@ -25,6 +26,7 @@ from rest_framework.response import Response
 from rest_framework.request import Request
 from rest_framework import status
 
+from library.permissions import IsBookOwnerOrReadOnly, IsStaffAndOwner, CanGetStatistic
 from library.serializers import (
     BookListSerializer,
     BookCreateUpdateSerializer,
@@ -35,9 +37,9 @@ from library.serializers import (
     AuthorListSerializer,
     AuthorCreateSerializer,
     UserListSerializer, PublisherListSerializer, PublisherCreateSerializer,
-    PublisherUpdateSerializer, PublisherDetailSerializer
+    PublisherUpdateSerializer, PublisherDetailSerializer, CategoryStatisticSerializer
 )
-from library.models import Book, Category, Author, User, Publisher
+from library.models import Book, Category, Author, User, Publisher, Review
 from query_debug import QueryDebug
 
 
@@ -111,12 +113,17 @@ class BookListCreateAPIView(APIView):
 
 
 class BookRetrieveUpdateDestroyAPIView(APIView):
+    permission_classes = [IsBookOwnerOrReadOnly]
 
     def get_object(self):
-        return get_object_or_404(
+        book = get_object_or_404(
             Book.objects.select_related('category', 'author', 'publisher'),
             pk=self.kwargs.get('pk')
         )
+
+        self.check_object_permissions(self.request, book)
+
+        return book
 
     def update(self, instance: Book, data: dict[str, Any], partial: bool = False):
         serializer = BookCreateUpdateSerializer(
@@ -134,6 +141,12 @@ class BookRetrieveUpdateDestroyAPIView(APIView):
         )
 
     def get(self, request: Request, *args, **kwargs) -> Response:
+
+        # print("=" * 100)
+        # print(request.user)
+        # print("=" * 100)
+
+
         book = self.get_object()
         serializer = BookDetailSerializer(book)
         return Response(
@@ -172,6 +185,15 @@ class BookRetrieveUpdateDestroyAPIView(APIView):
 
 
 
+class BookUpdateGenericView(RetrieveUpdateDestroyAPIView):
+    queryset = Book.objects.all()
+    permission_classes = [IsBookOwnerOrReadOnly]
+
+    def get_serializer_class(self):
+        if self.request.method in {'PUT', 'PATCH'}:
+            return BookCreateUpdateSerializer
+        return BookDetailSerializer
+
 
 class CategoryListCreateGenericAPIView(GenericAPIView):
 
@@ -209,6 +231,13 @@ class CategoryListCreateGenericAPIView(GenericAPIView):
             status=status.HTTP_201_CREATED
         )
 
+
+class CategoryStatisticGenricView(ListAPIView):
+
+    permission_classes = [CanGetStatistic]
+
+    queryset = Category.objects.values('name').annotate(books_count=Count('books'))
+    serializer_class = CategoryStatisticSerializer
 
 
 class CategoryRetrieveUpdateDestroyGenericView(RetrieveUpdateDestroyAPIView):
@@ -304,9 +333,9 @@ class CustomCursorPaginator(CursorPagination):
     ordering = 'id'
 
 
-class BookListGenericView(ListAPIView):
+class BookListGenericView(ListCreateAPIView):
 
-    queryset = Book.objects.all()
+    # queryset = Book.objects.all()
     serializer_class = BookListSerializer
     pagination_class = CustomCursorPaginator
 
@@ -333,6 +362,25 @@ class BookListGenericView(ListAPIView):
         'published_date',
     ]
 
+    def get_serializer_class(self):
+        if self.request.method == "GET":
+            return BookListSerializer
+
+        return BookCreateUpdateSerializer
+
+    def get_queryset(self):
+        qs = Book.objects.all()
+
+        my = self.request.query_params.get('my')
+
+        if my and my.strip().lower() == 'true':
+            qs = qs.filter(owner=self.request.user)
+
+        return qs
+
+    def perform_create(self, serializer):
+        serializer.validated_data['owner'] = self.request.user
+        serializer.save()
 
 
 
@@ -437,7 +485,8 @@ def notify_me():
 class AuthorViewSet(ModelViewSet):
     queryset = Author.objects.all()
     serializer_class = AuthorCreateSerializer
-    permission_classes = [IsAdminUser]
+    permission_classes = [AllowAny]
+    # permission_classes = [IsAdminUser]
     # authentication_classes = [TokenAuthentication]
 
     # HTTP methods заменяются на self.actions
@@ -524,3 +573,18 @@ class AuthorViewSet(ModelViewSet):
             data={'author': author_serializer.data},
             status=status.HTTP_201_CREATED
         )
+
+    def list(self, request: Request, *args, **kwargs):
+        print("=" * 100)
+        print(request.user)
+        print("=" * 100)
+
+        return super().list(request, *args, **kwargs)
+
+
+class ReviewViewSet(ModelViewSet):
+    permission_classes = [IsStaffAndOwner]
+    queryset = Review.objects.all()
+
+    # def get_serializer_class(self):
+    #     ...

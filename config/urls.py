@@ -16,12 +16,18 @@ Including another URLconf
 """
 from django.contrib import admin
 from django.urls import path, include
+from drf_spectacular.views import SpectacularSwaggerView, SpectacularRedocView, SpectacularAPIView
 
 from test_app.views import greetings
 
 urlpatterns = [
     path('admin/', admin.site.urls), # происходит редирект на N маршрутов от DJango
     path('api-auth/', include('rest_framework.urls')),
+    path('api/schema/', SpectacularAPIView.as_view(), name="schema"),
+    path("api/schema/swagger/", SpectacularSwaggerView.as_view(), name="swagger-ui"),
+    path("api/schema/redoc/", SpectacularRedocView.as_view(url_name="schema"), name="redoc"),
+
+
     path('home-page/', greetings),   # происходит выполнение логики функции
 
     # тут мы регистрируем наши представления (функции-вьюшки)

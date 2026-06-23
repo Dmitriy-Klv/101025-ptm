@@ -14,7 +14,8 @@ from library.class_views import (
     UserListGenericView,
     BookListGenericView,
     PublisherViewSet,
-    AuthorViewSet
+    AuthorViewSet,
+    BookUpdateGenericView, CategoryStatisticGenricView
 )
 
 
@@ -40,8 +41,10 @@ urlpatterns = [
     # path('books/', book_list_create),
     # path('books/', BookListCreateAPIView.as_view()),
     path('books/', BookListGenericView.as_view()),
-    path('books/<int:pk>/', BookRetrieveUpdateDestroyAPIView.as_view()),
+    # path('books/<int:pk>/', BookRetrieveUpdateDestroyAPIView.as_view()),
+    path('books/<int:pk>/', BookUpdateGenericView.as_view()),
     path('categories/', CategoryListCreateGenericAPIView.as_view()),
+    path('categories/statistic/', CategoryStatisticGenricView.as_view()),
     path('categories/<str:name>/', CategoryRetrieveUpdateDestroyGenericView.as_view()),
     # path('authors/', AuthorListCreateGenericView.as_view()),
     path('users/', UserListGenericView.as_view()),

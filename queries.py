@@ -344,3 +344,16 @@ try:
 except User.DoesNotExist:
     print("User not found")
 
+
+
+
+# user = User.objects.get(username='vlad')
+#
+# book = Book.objects.create(
+#     name="",
+#     name="",
+#     name="",
+#     name="",
+#     name="",
+#     owner=user
+# )
